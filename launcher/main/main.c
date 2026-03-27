@@ -14,6 +14,7 @@
 #include "browser.h"
 #include "gui.h"
 #include "webui.h"
+#include "usb_storage.h"
 #include "updater.h"
 
 static rg_app_t *app;
@@ -432,6 +433,8 @@ static void options_handler(rg_gui_option_t *dest)
 static void about_handler(rg_gui_option_t *dest)
 {
     *dest++ = (rg_gui_option_t){0, _("Build CRC cache"), NULL, RG_DIALOG_FLAG_NORMAL, &prebuild_cache_cb};
+    *dest++ = (rg_gui_option_t){0, _("USB file transfer"), NULL, RG_DIALOG_FLAG_NORMAL, &usb_storage_cb};
+    *dest++ = (rg_gui_option_t){0, _("Format FAT32 storage"), NULL, RG_DIALOG_FLAG_NORMAL, &format_storage_cb};
     #if defined(RG_ENABLE_NETWORKING) && RG_UPDATER_ENABLE
     *dest++ = (rg_gui_option_t){0, _("Check for updates"), NULL, RG_DIALOG_FLAG_NORMAL, &updater_cb};
     #endif

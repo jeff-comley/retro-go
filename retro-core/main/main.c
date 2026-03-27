@@ -7,7 +7,11 @@ void app_main(void)
 
     RG_LOGI("configNs=%s", app->configNs);
 
-    if (strcmp(app->configNs, "gbc") == 0 || strcmp(app->configNs, "gb") == 0)
+    if (strcmp(app->configNs, "a26") == 0)
+        a26_main();
+    else if (strcmp(app->configNs, "a78") == 0)
+        a78_main();
+    else if (strcmp(app->configNs, "gbc") == 0 || strcmp(app->configNs, "gb") == 0)
         gbc_main();
     else if (strcmp(app->configNs, "nes") == 0)
         nes_main();

@@ -1,0 +1,13 @@
+file(REMOVE_RECURSE
+  "config/sdkconfig.h"
+  "config/sdkconfig.cmake"
+  "bootloader/bootloader.elf"
+  "bootloader/bootloader.bin"
+  "bootloader/bootloader.map"
+  "retro-core.bin"
+  "flash_project_args"
+  "retro-core.map"
+  "project_elf_src_esp32s3.c"
+  "ldgen_libraries.in"
+  "ldgen_libraries"
+)

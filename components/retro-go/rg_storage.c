@@ -17,6 +17,11 @@
 
 #ifdef ESP_PLATFORM
 #include <esp_vfs_fat.h>
+#include <ff.h>
+#include <diskio_impl.h>
+#endif
+#if defined(ESP_PLATFORM) && (defined(RG_STORAGE_SDSPI_HOST) || defined(RG_STORAGE_SDMMC_HOST))
+#include <diskio_sdmmc.h>
 #endif
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -46,6 +51,19 @@ static wl_handle_t wl_handle = WL_INVALID_HANDLE;
         RG_LOGE("No path given"); \
         return false;             \
     }
+
+#if defined(ESP_PLATFORM) && (defined(RG_STORAGE_SDSPI_HOST) || defined(RG_STORAGE_SDMMC_HOST))
+static size_t get_fat32_allocation_unit(uint64_t bytes_total)
+{
+    if (bytes_total < (512ULL << 20))
+        return 4096;
+    if (bytes_total < (1024ULL << 20))
+        return 8192;
+    if (bytes_total < (2ULL << 30))
+        return 16384;
+    return 32768;
+}
+#endif
 
 #if defined(RG_STORAGE_SDSPI_HOST) || defined(RG_STORAGE_SDMMC_HOST)
 static esp_err_t sdcard_do_transaction(int slot, sdmmc_command_t *cmdinfo)
@@ -121,20 +139,55 @@ void rg_storage_init(void)
     RG_LOGI("Looking for SD Card using SDMMC...");
 
     sdmmc_host_t host_config = SDMMC_HOST_DEFAULT();
-    host_config.flags = SDMMC_HOST_FLAG_1BIT;
     host_config.slot = RG_STORAGE_SDMMC_HOST;
     host_config.max_freq_khz = RG_STORAGE_SDMMC_SPEED;
     host_config.do_transaction = &sdcard_do_transaction;
 
     sdmmc_slot_config_t slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
+#if defined(RG_GPIO_SDSPI_D1) && defined(RG_GPIO_SDSPI_D2) && defined(RG_GPIO_SDSPI_D3)
+    host_config.flags &= ~(SDMMC_HOST_FLAG_8BIT | SDMMC_HOST_FLAG_4BIT | SDMMC_HOST_FLAG_1BIT);
+    host_config.flags |= SDMMC_HOST_FLAG_4BIT;
+    slot_config.width = 4;
+#else
+    host_config.flags &= ~(SDMMC_HOST_FLAG_8BIT | SDMMC_HOST_FLAG_4BIT | SDMMC_HOST_FLAG_1BIT);
+    host_config.flags |= SDMMC_HOST_FLAG_1BIT;
     slot_config.width = 1;
+#endif
 #if SOC_SDMMC_USE_GPIO_MATRIX
     slot_config.clk = RG_GPIO_SDSPI_CLK;
     slot_config.cmd = RG_GPIO_SDSPI_CMD;
     slot_config.d0 = RG_GPIO_SDSPI_D0;
-    // d1 and d3 normally not used in width=1 but sdmmc_host_init_slot saves them, so just in case
-    slot_config.d1 = slot_config.d3 = -1;
+    // sdmmc_host_init_slot stores all data pins even in 1-bit mode, so set the
+    // unused ones explicitly when the target doesn't provide them.
+    #ifdef RG_GPIO_SDSPI_D1
+    slot_config.d1 = RG_GPIO_SDSPI_D1;
+    #else
+    slot_config.d1 = -1;
+    #endif
+    #ifdef RG_GPIO_SDSPI_D2
+    slot_config.d2 = RG_GPIO_SDSPI_D2;
+    #else
+    slot_config.d2 = -1;
+    #endif
+    #ifdef RG_GPIO_SDSPI_D3
+    slot_config.d3 = RG_GPIO_SDSPI_D3;
+    #else
+    slot_config.d3 = -1;
+    #endif
 #endif
+    #ifdef RG_GPIO_SDSPI_CD
+    slot_config.cd = RG_GPIO_SDSPI_CD;
+    #else
+    slot_config.cd = SDMMC_SLOT_NO_CD;
+    #endif
+    #ifdef RG_GPIO_SDSPI_WP
+    slot_config.wp = RG_GPIO_SDSPI_WP;
+    #else
+    slot_config.wp = SDMMC_SLOT_NO_WP;
+    #endif
+    #ifdef RG_STORAGE_SDMMC_FLAGS
+    slot_config.flags = RG_STORAGE_SDMMC_FLAGS;
+    #endif
 
     esp_vfs_fat_mount_config_t mount_config = {
         .format_if_mount_failed = false,
@@ -192,12 +245,22 @@ void rg_storage_init(void)
 
 void rg_storage_deinit(void)
 {
-    if (!disk_mounted)
+    int error_code = 0;
+    bool have_media = false;
+
+#if defined(RG_STORAGE_SDSPI_HOST) || defined(RG_STORAGE_SDMMC_HOST)
+    have_media = have_media || (card_handle != NULL);
+#endif
+
+#if defined(RG_STORAGE_FLASH_PARTITION)
+    have_media = have_media || (wl_handle != WL_INVALID_HANDLE);
+#endif
+
+    if (!disk_mounted && !have_media)
         return;
 
-    rg_storage_commit();
-
-    int error_code = 0;
+    if (disk_mounted)
+        rg_storage_commit();
 
 #if defined(RG_STORAGE_SDSPI_HOST) || defined(RG_STORAGE_SDMMC_HOST)
     if (card_handle != NULL)
@@ -228,6 +291,105 @@ void rg_storage_deinit(void)
 bool rg_storage_ready(void)
 {
     return disk_mounted;
+}
+
+bool rg_storage_suspend(void)
+{
+#if defined(ESP_PLATFORM) && (defined(RG_STORAGE_SDSPI_HOST) || defined(RG_STORAGE_SDMMC_HOST))
+    if (!disk_mounted || !card_handle)
+        return false;
+
+    BYTE pdrv = ff_diskio_get_pdrv_card(card_handle);
+    if (pdrv == FF_DRV_NOT_USED)
+        return false;
+
+    char drv[3] = {(char)('0' + pdrv), ':', 0};
+
+    f_mount(NULL, drv, 0);
+    esp_vfs_fat_unregister_path(RG_STORAGE_ROOT);
+    ff_diskio_unregister(pdrv);
+    disk_mounted = false;
+    RG_LOGI("Storage suspended.");
+    return true;
+#else
+    return false;
+#endif
+}
+
+bool rg_storage_resume(void)
+{
+#if defined(ESP_PLATFORM) && (defined(RG_STORAGE_SDSPI_HOST) || defined(RG_STORAGE_SDMMC_HOST))
+    if (disk_mounted)
+        return true;
+    if (!card_handle)
+        return false;
+
+    BYTE pdrv = FF_DRV_NOT_USED;
+    if (ff_diskio_get_drive(&pdrv) != ESP_OK || pdrv == FF_DRV_NOT_USED)
+        return false;
+
+    char drv[3] = {(char)('0' + pdrv), ':', 0};
+    FATFS *fs = NULL;
+
+    ff_diskio_register_sdmmc(pdrv, card_handle);
+    ff_sdmmc_set_disk_status_check(pdrv, false);
+
+    esp_err_t err = esp_vfs_fat_register(RG_STORAGE_ROOT, drv, 4, &fs);
+    if (err != ESP_OK)
+    {
+        ff_diskio_unregister(pdrv);
+        return false;
+    }
+
+    if (f_mount(fs, drv, 1) != FR_OK)
+    {
+        esp_vfs_fat_unregister_path(RG_STORAGE_ROOT);
+        ff_diskio_unregister(pdrv);
+        return false;
+    }
+
+    disk_mounted = true;
+    RG_LOGI("Storage resumed at %s.", RG_STORAGE_ROOT);
+    return true;
+#else
+    return false;
+#endif
+}
+
+void *rg_storage_get_media(void)
+{
+#if defined(RG_STORAGE_SDSPI_HOST) || defined(RG_STORAGE_SDMMC_HOST)
+    return card_handle;
+#elif defined(RG_STORAGE_FLASH_PARTITION)
+    return (void *)(intptr_t)wl_handle;
+#else
+    return NULL;
+#endif
+}
+
+bool rg_storage_format(void)
+{
+#if defined(ESP_PLATFORM) && (defined(RG_STORAGE_SDSPI_HOST) || defined(RG_STORAGE_SDMMC_HOST))
+    if (!card_handle || !disk_mounted)
+    {
+        RG_LOGE("No mounted SD card available for formatting");
+        return false;
+    }
+
+    uint64_t bytes_total = (uint64_t)card_handle->csd.capacity * card_handle->csd.sector_size;
+    esp_vfs_fat_mount_config_t cfg = {
+        .format_if_mount_failed = false,
+        .max_files = 4,
+        .allocation_unit_size = get_fat32_allocation_unit(bytes_total),
+        .disk_status_check_enable = false,
+        .use_one_fat = false,
+    };
+
+    RG_LOGI("Formatting storage as FAT32 (au=%u)", (unsigned)cfg.allocation_unit_size);
+    return esp_vfs_fat_sdcard_format_cfg(RG_STORAGE_ROOT, card_handle, &cfg) == ESP_OK;
+#else
+    return false;
+#endif
 }
 
 void rg_storage_commit(void)

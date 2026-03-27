@@ -127,7 +127,10 @@ static inline void write_update(const rg_surface_t *update)
     const void *data = update->data + update->offset + (crop_top * stride) + (crop_left * RG_PIXEL_GET_SIZE(format));
     const uint16_t *palette = update->palette;
 
-    const bool partial_update = RG_SCREEN_PARTIAL_UPDATES;
+    // The line checksum is computed before horizontal/vertical filtering.
+    // When filters are enabled, neighboring pixels/lines can change even if the
+    // raw source line hash is identical, which leaves stale image data on screen.
+    const bool partial_update = RG_SCREEN_PARTIAL_UPDATES && !(filter_x || filter_y);
 
     int lines_per_buffer = LCD_BUFFER_LENGTH / draw_width;
     int lines_remaining = draw_height;
@@ -512,7 +515,7 @@ void rg_display_submit(const rg_surface_t *update, uint32_t flags)
 bool rg_display_sync(bool block)
 {
     while (block && rg_task_messages_waiting(display_task_queue))
-        continue; // We should probably yield?
+        rg_task_yield();
     return !rg_task_messages_waiting(display_task_queue);
 }
 
@@ -575,18 +578,23 @@ void rg_display_write_rect(int left, int top, int width, int height, int stride,
 void rg_display_clear_rect(int left, int top, int width, int height, uint16_t color_le)
 {
     const uint16_t color_be = (color_le << 8) | (color_le >> 8);
-    int pixels_remaining = width * height;
-    if (pixels_remaining > 0)
+    if (width <= 0 || height <= 0)
+        return;
+
+    int lines_remaining = height;
+    if (lines_remaining > 0)
     {
         lcd_set_window(left + display.screen.margins.left, top + display.screen.margins.top, width, height);
-        while (pixels_remaining > 0)
+        while (lines_remaining > 0)
         {
             uint16_t *buffer = lcd_get_buffer(LCD_BUFFER_LENGTH);
-            int pixels = RG_MIN(pixels_remaining, LCD_BUFFER_LENGTH);
+            int lines = RG_MAX(1, LCD_BUFFER_LENGTH / width);
+            lines = RG_MIN(lines, lines_remaining);
+            int pixels = width * lines;
             for (size_t j = 0; j < pixels; ++j)
                 buffer[j] = color_be;
             lcd_send_buffer(buffer, pixels);
-            pixels_remaining -= pixels;
+            lines_remaining -= lines;
         }
     }
 }

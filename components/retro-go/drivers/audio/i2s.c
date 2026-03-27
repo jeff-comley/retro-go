@@ -139,6 +139,12 @@ static bool driver_submit(const rg_audio_frame_t *frames, size_t count)
         int left = frames[i].left * volume;
         int right = frames[i].right * volume;
 
+        #ifdef RG_AUDIO_MIX_TO_MONO
+        const int mono = (left + right) >> 1;
+        left = mono;
+        right = mono;
+        #endif
+
         if (use_internal_dac)
         {
         #if RG_AUDIO_USE_INT_DAC == 1

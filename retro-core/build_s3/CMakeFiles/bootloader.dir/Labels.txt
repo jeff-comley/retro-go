@@ -1,0 +1,13 @@
+# Target labels
+ bootloader
+# Source files and their labels
+/Users/jeffc/Development/Xiao/retro-go/retro-core/build_s3/CMakeFiles/bootloader
+/Users/jeffc/Development/Xiao/retro-go/retro-core/build_s3/CMakeFiles/bootloader.rule
+/Users/jeffc/Development/Xiao/retro-go/retro-core/build_s3/CMakeFiles/bootloader-complete.rule
+/Users/jeffc/Development/Xiao/retro-go/retro-core/build_s3/bootloader-prefix/src/bootloader-stamp/bootloader-build.rule
+/Users/jeffc/Development/Xiao/retro-go/retro-core/build_s3/bootloader-prefix/src/bootloader-stamp/bootloader-configure.rule
+/Users/jeffc/Development/Xiao/retro-go/retro-core/build_s3/bootloader-prefix/src/bootloader-stamp/bootloader-download.rule
+/Users/jeffc/Development/Xiao/retro-go/retro-core/build_s3/bootloader-prefix/src/bootloader-stamp/bootloader-install.rule
+/Users/jeffc/Development/Xiao/retro-go/retro-core/build_s3/bootloader-prefix/src/bootloader-stamp/bootloader-mkdir.rule
+/Users/jeffc/Development/Xiao/retro-go/retro-core/build_s3/bootloader-prefix/src/bootloader-stamp/bootloader-patch.rule
+/Users/jeffc/Development/Xiao/retro-go/retro-core/build_s3/bootloader-prefix/src/bootloader-stamp/bootloader-update.rule

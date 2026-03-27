@@ -243,6 +243,151 @@ static void update_indicators(bool reset_animation)
         rg_system_set_led_color(newColor);
 }
 
+#if defined(ESP_PLATFORM) && defined(RG_STORAGE_SDMMC_HOST) && defined(RG_GPIO_SDSPI_CD)
+#ifndef RG_GPIO_SDSPI_CD_PRESENT_LEVEL
+#define RG_GPIO_SDSPI_CD_PRESENT_LEVEL 0
+#endif
+
+#ifndef RG_GPIO_SDSPI_CD_DEBOUNCE_MS
+#define RG_GPIO_SDSPI_CD_DEBOUNCE_MS 150
+#endif
+
+static struct
+{
+    bool initialized;
+    bool raw_present;
+    bool stable_present;
+    bool ignore_missing;
+    bool handling;
+    int64_t changed_at;
+} storage_cd_state;
+
+static bool storage_cd_is_present_raw(void)
+{
+    return gpio_get_level(RG_GPIO_SDSPI_CD) == RG_GPIO_SDSPI_CD_PRESENT_LEVEL;
+}
+
+static void storage_cd_handle_removed(void)
+{
+    if (storage_cd_state.handling)
+        return;
+
+    storage_cd_state.handling = true;
+    storage_cd_state.ignore_missing = false;
+
+    RG_LOGW("SD card removal detected");
+
+    rg_storage_deinit();
+    rg_system_event(RG_EVENT_STORAGE_REMOVED, NULL);
+
+    while (true)
+    {
+        bool present = storage_cd_is_present_raw();
+        const char *message = present
+            ? _("SD card detected again.\nChoose Retry to remount it.")
+            : _("SD card removed.\nReinsert it, then choose Retry.");
+
+        if (app.isLauncher)
+        {
+            const rg_gui_option_t options[] = {
+                {0, message, NULL, RG_DIALOG_FLAG_MESSAGE, NULL},
+                {0, "", NULL, RG_DIALOG_FLAG_MESSAGE, NULL},
+                {1, _("Retry"), NULL, RG_DIALOG_FLAG_NORMAL, NULL},
+                {2, _("Continue"), NULL, RG_DIALOG_FLAG_NORMAL, NULL},
+                RG_DIALOG_END,
+            };
+
+            intptr_t choice = rg_gui_dialog(_("SD Card"), options, 2);
+            if (choice == 2 || choice == RG_DIALOG_CANCELLED)
+            {
+                storage_cd_state.ignore_missing = true;
+                break;
+            }
+        }
+        else
+        {
+            const rg_gui_option_t options[] = {
+                {0, message, NULL, RG_DIALOG_FLAG_MESSAGE, NULL},
+                {0, "", NULL, RG_DIALOG_FLAG_MESSAGE, NULL},
+                {1, _("Retry"), NULL, RG_DIALOG_FLAG_NORMAL, NULL},
+                {2, _("Exit to launcher"), NULL, RG_DIALOG_FLAG_NORMAL, NULL},
+                RG_DIALOG_END,
+            };
+
+            intptr_t choice = rg_gui_dialog(_("SD Card"), options, 0);
+            if (choice == 2 || choice == RG_DIALOG_CANCELLED)
+            {
+                storage_cd_state.handling = false;
+                rg_system_switch_app(RG_APP_LAUNCHER, 0, 0, 0);
+            }
+        }
+
+        if (!storage_cd_is_present_raw())
+            continue;
+
+        rg_storage_init();
+        if (rg_storage_ready())
+        {
+            rg_system_event(RG_EVENT_STORAGE_RESTORED, NULL);
+            RG_LOGI("SD card restored");
+            break;
+        }
+
+        rg_gui_alert(_("SD Card"), _("Remount failed. Check the card and wiring."));
+    }
+
+    storage_cd_state.raw_present = storage_cd_is_present_raw();
+    storage_cd_state.stable_present = storage_cd_state.raw_present;
+    storage_cd_state.changed_at = rg_system_timer();
+    storage_cd_state.handling = false;
+}
+
+static void storage_cd_poll(void)
+{
+    if (!storage_cd_state.initialized || storage_cd_state.handling)
+        return;
+
+    bool raw_present = storage_cd_is_present_raw();
+    int64_t now = rg_system_timer();
+
+    if (raw_present != storage_cd_state.raw_present)
+    {
+        storage_cd_state.raw_present = raw_present;
+        storage_cd_state.changed_at = now;
+        return;
+    }
+
+    if (raw_present == storage_cd_state.stable_present)
+        return;
+
+    if (now - storage_cd_state.changed_at < RG_GPIO_SDSPI_CD_DEBOUNCE_MS * 1000LL)
+        return;
+
+    storage_cd_state.stable_present = raw_present;
+
+    if (!raw_present)
+    {
+        storage_cd_handle_removed();
+        return;
+    }
+
+    if (storage_cd_state.ignore_missing || !rg_storage_ready())
+    {
+        storage_cd_state.ignore_missing = false;
+        rg_storage_init();
+        if (rg_storage_ready())
+        {
+            rg_system_event(RG_EVENT_STORAGE_RESTORED, NULL);
+            RG_LOGI("SD card reinserted and mounted");
+        }
+        else
+        {
+            RG_LOGW("SD card detected but remount failed");
+        }
+    }
+}
+#endif
+
 static void system_monitor_task(void *arg)
 {
     int64_t nextLoopTime = 0;
@@ -276,7 +421,7 @@ static void system_monitor_task(void *arg)
             (int)roundf((battery.volts * 1000) ?: battery.level));
 
         // Auto frameskip
-        if (statistics.ticks > app.tickRate * 2)
+        if (app.autoFrameskip && statistics.ticks > app.tickRate * 2)
         {
             float speed = ((float)statistics.totalFPS / app.tickRate) * 100.f / app.speed;
             // We don't fully go back to 0 frameskip because if we dip below 95% once, we're clearly
@@ -369,6 +514,10 @@ static void platform_init(void)
         gpio_set_direction(RG_GPIO_SDSPI_CS, GPIO_MODE_OUTPUT);
         gpio_set_level(RG_GPIO_SDSPI_CS, 1);
     #endif
+    #if defined(RG_GPIO_SDSPI_CD)
+        gpio_set_direction(RG_GPIO_SDSPI_CD, GPIO_MODE_INPUT);
+        gpio_set_pull_mode(RG_GPIO_SDSPI_CD, GPIO_PULLUP_ONLY);
+    #endif
     #ifdef RG_GPIO_LED
         gpio_set_direction(RG_GPIO_LED, GPIO_MODE_OUTPUT);
         gpio_set_level(RG_GPIO_LED, 0);
@@ -422,6 +571,7 @@ rg_app_t *rg_system_init(int sampleRate, const rg_handlers_t *handlers, void *_u
         .frameskip = 1, // This can be overriden on a per-app basis if needed, do not set 0 here!
         .overclock = 0,
         .tickTimeout = 3000000,
+        .autoFrameskip = true,
         .lowMemoryMode = false,
         .enWatchdog = true,
         .isColdBoot = true,
@@ -460,6 +610,16 @@ rg_app_t *rg_system_init(int sampleRate, const rg_handlers_t *handlers, void *_u
 
     rg_storage_init();
     rg_input_init();
+
+#if defined(ESP_PLATFORM) && defined(RG_STORAGE_SDMMC_HOST) && defined(RG_GPIO_SDSPI_CD)
+    bool card_present = storage_cd_is_present_raw();
+    storage_cd_state.initialized = true;
+    storage_cd_state.raw_present = card_present;
+    storage_cd_state.stable_present = card_present;
+    storage_cd_state.ignore_missing = false;
+    storage_cd_state.handling = false;
+    storage_cd_state.changed_at = rg_system_timer();
+#endif
 
     // Test for recovery request as early as possible
     for (int timeout = 5, btn; (btn = rg_input_read_gamepad() & RG_RECOVERY_BTN) && timeout >= 0; --timeout)
@@ -631,7 +791,7 @@ bool rg_task_send(rg_task_t *task, const rg_task_msg_t *msg)
 {
     RG_ASSERT_ARG(task && msg);
 #if defined(ESP_PLATFORM)
-    return xQueueSend(task->queue, msg, portMAX_DELAY) == pdTRUE;
+    return xQueueOverwrite(task->queue, msg) == pdTRUE;
 #elif defined(RG_TARGET_SDL2)
     while (task->msgWaiting > 0)
         continue;
@@ -835,6 +995,9 @@ void rg_system_tick(int busyTime)
     statistics.lastTick = rg_system_timer();
     statistics.busyTime += busyTime;
     statistics.ticks++;
+#if defined(ESP_PLATFORM) && defined(RG_STORAGE_SDMMC_HOST) && defined(RG_GPIO_SDSPI_CD)
+    storage_cd_poll();
+#endif
     // WDT_RELOAD(WDT_TIMEOUT);
 }
 
@@ -1139,21 +1302,29 @@ void rg_system_set_overclock(int level)
     #define I2C_BBPLL                   0x66
     #define I2C_BBPLL_HOSTID               4
     #define I2C_BBPLL_OC_DIV_7_0           3    // This is the PLL divider to get the CPU clock (our main concern)
-    #define OC_MAX_LEVEL                   6
-    #define OC_MIN_LEVEL                  -5
+    #ifndef RG_OVERCLOCK_MAX_LEVEL
+    #define RG_OVERCLOCK_MAX_LEVEL         6
+    #endif
+    #ifndef RG_OVERCLOCK_MIN_LEVEL
+    #define RG_OVERCLOCK_MIN_LEVEL        -5
+    #endif
     #define OC_DIV7_MULTIPLIER             5
 #else // CONFIG_IDF_TARGET_ESP32S3
     #define I2C_BBPLL                   0x66
     #define I2C_BBPLL_HOSTID               1
     #define I2C_BBPLL_OC_DIV_7_0           3
     #define OC
-    #define OC_MAX_LEVEL                   8
-    #define OC_MIN_LEVEL                  -8
+    #ifndef RG_OVERCLOCK_MAX_LEVEL
+    #define RG_OVERCLOCK_MAX_LEVEL         8
+    #endif
+    #ifndef RG_OVERCLOCK_MIN_LEVEL
+    #define RG_OVERCLOCK_MIN_LEVEL        -8
+    #endif
     #define OC_DIV7_MULTIPLIER             1
 #endif
-    if (level < OC_MIN_LEVEL || level > OC_MAX_LEVEL)
+    if (level < RG_OVERCLOCK_MIN_LEVEL || level > RG_OVERCLOCK_MAX_LEVEL)
     {
-        RG_LOGW("Invalid level %d, min:%d max:%d", level, OC_MIN_LEVEL, OC_MAX_LEVEL);
+        RG_LOGW("Invalid level %d, min:%d max:%d", level, RG_OVERCLOCK_MIN_LEVEL, RG_OVERCLOCK_MAX_LEVEL);
         return;
     }
     static int original_div7_0 = -1;

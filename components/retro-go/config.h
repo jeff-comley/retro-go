@@ -32,6 +32,10 @@
 #include "targets/crokpocket/config.h"
 #elif defined(RG_TARGET_REDROID_GO)
 #include "targets/redroid-go/config.h"
+#elif defined(RG_TARGET_LILYGO_T7_S3)
+#include "targets/lilygo-t7-s3/config.h"
+#elif defined(RG_TARGET_XIAO_ESP32S3)
+    #include "targets/xiao-esp32s3/config.h"
 #else
 #warning "No target defined. Defaulting to ODROID-GO."
 #include "targets/odroid-go/config.h"

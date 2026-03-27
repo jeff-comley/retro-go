@@ -122,6 +122,8 @@ typedef enum
     RG_EVENT_REDRAW       = RG_EVENT_TYPE_SYSTEM | 3,
     RG_EVENT_SPEEDUP      = RG_EVENT_TYPE_SYSTEM | 4,
     RG_EVENT_SCREENSHOT   = RG_EVENT_TYPE_SYSTEM | 5,
+    RG_EVENT_STORAGE_REMOVED  = RG_EVENT_TYPE_SYSTEM | 6,
+    RG_EVENT_STORAGE_RESTORED = RG_EVENT_TYPE_SYSTEM | 7,
     RG_EVENT_SHUTDOWN     = RG_EVENT_TYPE_POWER | 1,
     RG_EVENT_SLEEP        = RG_EVENT_TYPE_POWER | 2,
 } rg_event_t;
@@ -176,6 +178,7 @@ typedef struct
     int frameskip;
     int overclock;
     int tickTimeout;
+    bool autoFrameskip;
     bool lowMemoryMode;
     bool enWatchdog;
     bool isColdBoot;

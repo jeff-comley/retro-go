@@ -1,0 +1,2 @@
+/Users/jeffc/.espressif/tools/xtensa-esp-elf/esp-14.2.0_20241119/xtensa-esp-elf/bin/xtensa-esp32s3-elf-ar qc libgnuboy.a CMakeFiles/__idf_gnuboy.dir/cpu.c.obj CMakeFiles/__idf_gnuboy.dir/gnuboy.c.obj CMakeFiles/__idf_gnuboy.dir/hw.c.obj CMakeFiles/__idf_gnuboy.dir/lcd.c.obj CMakeFiles/__idf_gnuboy.dir/sound.c.obj
+/Users/jeffc/.espressif/tools/xtensa-esp-elf/esp-14.2.0_20241119/xtensa-esp-elf/bin/xtensa-esp32s3-elf-ranlib libgnuboy.a

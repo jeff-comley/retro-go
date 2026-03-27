@@ -1,0 +1,144 @@
+Command: make -j 12 all
+<command-line>: error: macro names must be identifiers
+<command-line>: error: macro names must be identifiers
+<command-line>: error: macro names must be identifiers
+<command-line>: error: macro names must be identifiers
+<command-line>: error: macro names must be identifiers
+<command-line>: error: macro names must be identifiers
+<command-line>: error: macro names must be identifiers
+<command-line>: error: macro names must be identifiers
+<command-line>: error: macro names must be identifiers
+<command-line>: error: macro names must be identifiers
+<command-line>: error: macro names must be identifiers
+<command-line>: error: macro names must be identifiers
+In file included from /Users/jeffc/Development/Xiao/retro-go/components/retro-go/rg_system.h:13,
+                 from /Users/jeffc/Development/Xiao/retro-go/components/retro-go/rg_display.c:1:
+/Users/jeffc/Development/Xiao/retro-go/components/retro-go/config.h:40:2: warning: #warning "No target defined. Defaulting to ODROID-GO." [-Wcpp]
+   40 | #warning "No target defined. Defaulting to ODROID-GO."
+      |  ^~~~~~~
+In file included from /Users/jeffc/Development/Xiao/retro-go/components/retro-go/rg_system.h:13,
+                 from /Users/jeffc/Development/Xiao/retro-go/components/retro-go/rg_utils.c:1:
+/Users/jeffc/Development/Xiao/retro-go/components/retro-go/config.h:40:2: warning: #warning "No target defined. Defaulting to ODROID-GO." [-Wcpp]
+   40 | #warning "No target defined. Defaulting to ODROID-GO."
+      |  ^~~~~~~
+In file included from /Users/jeffc/Development/Xiao/retro-go/components/retro-go/rg_system.h:13,
+                 from /Users/jeffc/Development/Xiao/retro-go/components/retro-go/rg_storage.c:1:
+/Users/jeffc/Development/Xiao/retro-go/components/retro-go/config.h:40:2: warning: #warning "No target defined. Defaulting to ODROID-GO." [-Wcpp]
+   40 | #warning "No target defined. Defaulting to ODROID-GO."
+      |  ^~~~~~~
+In file included from /Users/jeffc/Development/Xiao/retro-go/components/retro-go/rg_system.h:13,
+                 from /Users/jeffc/Development/Xiao/retro-go/components/retro-go/rg_localization.c:1:
+/Users/jeffc/Development/Xiao/retro-go/components/retro-go/config.h:40:2: warning: #warning "No target defined. Defaulting to ODROID-GO." [-Wcpp]
+   40 | #warning "No target defined. Defaulting to ODROID-GO."
+      |  ^~~~~~~
+In file included from /Users/jeffc/Development/Xiao/retro-go/components/retro-go/rg_system.h:13,
+                 from /Users/jeffc/Development/Xiao/retro-go/components/retro-go/rg_surface.c:1:
+/Users/jeffc/Development/Xiao/retro-go/components/retro-go/config.h:40:2: warning: #warning "No target defined. Defaulting to ODROID-GO." [-Wcpp]
+   40 | #warning "No target defined. Defaulting to ODROID-GO."
+      |  ^~~~~~~
+In file included from /Users/jeffc/Development/Xiao/retro-go/components/retro-go/rg_system.h:13,
+                 from /Users/jeffc/Development/Xiao/retro-go/components/retro-go/rg_system.c:1:
+/Users/jeffc/Development/Xiao/retro-go/components/retro-go/config.h:40:2: warning: #warning "No target defined. Defaulting to ODROID-GO." [-Wcpp]
+   40 | #warning "No target defined. Defaulting to ODROID-GO."
+      |  ^~~~~~~
+In file included from /Users/jeffc/Development/Xiao/retro-go/components/retro-go/rg_system.h:13,
+                 from /Users/jeffc/Development/Xiao/retro-go/components/retro-go/rg_i2c.c:1:
+/Users/jeffc/Development/Xiao/retro-go/components/retro-go/config.h:40:2: warning: #warning "No target defined. Defaulting to ODROID-GO." [-Wcpp]
+   40 | #warning "No target defined. Defaulting to ODROID-GO."
+      |  ^~~~~~~
+In file included from /Users/jeffc/Development/Xiao/retro-go/components/retro-go/rg_system.h:13,
+                 from /Users/jeffc/Development/Xiao/retro-go/components/retro-go/rg_input.c:1:
+/Users/jeffc/Development/Xiao/retro-go/components/retro-go/config.h:40:2: warning: #warning "No target defined. Defaulting to ODROID-GO." [-Wcpp]
+   40 | #warning "No target defined. Defaulting to ODROID-GO."
+      |  ^~~~~~~
+In file included from /Users/jeffc/Development/Xiao/retro-go/components/retro-go/rg_system.h:13,
+                 from /Users/jeffc/Development/Xiao/retro-go/components/retro-go/rg_settings.c:1:
+/Users/jeffc/Development/Xiao/retro-go/components/retro-go/config.h:40:2: warning: #warning "No target defined. Defaulting to ODROID-GO." [-Wcpp]
+   40 | #warning "No target defined. Defaulting to ODROID-GO."
+      |  ^~~~~~~
+In file included from /Users/jeffc/Development/Xiao/retro-go/components/retro-go/rg_system.h:13,
+                 from /Users/jeffc/Development/Xiao/retro-go/components/retro-go/rg_network.c:1:
+/Users/jeffc/Development/Xiao/retro-go/components/retro-go/config.h:40:2: warning: #warning "No target defined. Defaulting to ODROID-GO." [-Wcpp]
+   40 | #warning "No target defined. Defaulting to ODROID-GO."
+      |  ^~~~~~~
+In file included from /Users/jeffc/Development/Xiao/retro-go/components/retro-go/rg_system.h:13,
+                 from /Users/jeffc/Development/Xiao/retro-go/components/retro-go/rg_audio.c:1:
+/Users/jeffc/Development/Xiao/retro-go/components/retro-go/config.h:40:2: warning: #warning "No target defined. Defaulting to ODROID-GO." [-Wcpp]
+   40 | #warning "No target defined. Defaulting to ODROID-GO."
+      |  ^~~~~~~
+In file included from /Users/jeffc/Development/Xiao/retro-go/components/retro-go/rg_system.h:13,
+                 from /Users/jeffc/Development/Xiao/retro-go/components/retro-go/rg_gui.c:1:
+/Users/jeffc/Development/Xiao/retro-go/components/retro-go/config.h:40:2: warning: #warning "No target defined. Defaulting to ODROID-GO." [-Wcpp]
+   40 | #warning "No target defined. Defaulting to ODROID-GO."
+      |  ^~~~~~~
+make[2]: *** [esp-idf/retro-go/CMakeFiles/__idf_retro-go.dir/rg_utils.c.obj] Error 1
+make[2]: *** Waiting for unfinished jobs....
+make[2]: *** [esp-idf/retro-go/CMakeFiles/__idf_retro-go.dir/rg_localization.c.obj] Error 1
+make[2]: *** [esp-idf/retro-go/CMakeFiles/__idf_retro-go.dir/rg_i2c.c.obj] Error 1
+In file included from /Users/jeffc/Development/Xiao/retro-go/components/retro-go/rg_input.c:10:
+/Users/jeffc/.esp/esp-idf/components/driver/deprecated/driver/adc.h:19:2: warning: #warning "legacy adc driver is deprecated, please migrate to use esp_adc/adc_oneshot.h and esp_adc/adc_continuous.h for oneshot mode and continuous mode drivers respectively" [-Wcpp]
+   19 | #warning "legacy adc driver is deprecated, please migrate to use esp_adc/adc_oneshot.h and esp_adc/adc_continuous.h for oneshot mode and continuous mode drivers respectively"
+      |  ^~~~~~~
+In file included from /Users/jeffc/Development/Xiao/retro-go/components/retro-go/rg_input.c:19:
+/Users/jeffc/.esp/esp-idf/components/esp_adc/deprecated/include/esp_adc_cal.h:17:2: warning: #warning "legacy adc calibration driver is deprecated, please migrate to use esp_adc/adc_cali.h and esp_adc/adc_cali_scheme.h" [-Wcpp]
+   17 | #warning "legacy adc calibration driver is deprecated, please migrate to use esp_adc/adc_cali.h and esp_adc/adc_cali_scheme.h"
+      |  ^~~~~~~
+make[2]: *** [esp-idf/retro-go/CMakeFiles/__idf_retro-go.dir/rg_audio.c.obj] Error 1
+make[2]: *** [esp-idf/retro-go/CMakeFiles/__idf_retro-go.dir/rg_network.c.obj] Error 1
+make[2]: *** [esp-idf/retro-go/CMakeFiles/__idf_retro-go.dir/rg_settings.c.obj] Error 1
+make[2]: *** [esp-idf/retro-go/CMakeFiles/__idf_retro-go.dir/rg_input.c.obj] Error 1
+make[2]: *** [esp-idf/retro-go/CMakeFiles/__idf_retro-go.dir/rg_surface.c.obj] Error 1
+In file included from /Users/jeffc/Development/Xiao/retro-go/components/retro-go/config.h:41:
+/Users/jeffc/Development/Xiao/retro-go/components/retro-go/drivers/display/ili9341.h: In function 'spi_init':
+/Users/jeffc/Development/Xiao/retro-go/components/retro-go/targets/odroid-go/config.h:84:37: error: 'GPIO_NUM_23' undeclared (first use in this function); did you mean 'GPIO_NUM_43'?
+   84 | #define RG_GPIO_LCD_MOSI            GPIO_NUM_23
+      |                                     ^~~~~~~~~~~
+/Users/jeffc/Development/Xiao/retro-go/components/retro-go/drivers/display/ili9341.h:89:24: note: in expansion of macro 'RG_GPIO_LCD_MOSI'
+   89 |         .mosi_io_num = RG_GPIO_LCD_MOSI,
+      |                        ^~~~~~~~~~~~~~~~
+/Users/jeffc/Development/Xiao/retro-go/components/retro-go/targets/odroid-go/config.h:84:37: note: each undeclared identifier is reported only once for each function it appears in
+   84 | #define RG_GPIO_LCD_MOSI            GPIO_NUM_23
+      |                                     ^~~~~~~~~~~
+/Users/jeffc/Development/Xiao/retro-go/components/retro-go/drivers/display/ili9341.h:89:24: note: in expansion of macro 'RG_GPIO_LCD_MOSI'
+   89 |         .mosi_io_num = RG_GPIO_LCD_MOSI,
+      |                        ^~~~~~~~~~~~~~~~
+In file included from /Users/jeffc/Development/Xiao/retro-go/components/retro-go/config.h:41:
+/Users/jeffc/Development/Xiao/retro-go/components/retro-go/rg_storage.c: In function 'rg_storage_init':
+/Users/jeffc/Development/Xiao/retro-go/components/retro-go/targets/odroid-go/config.h:93:37: error: 'GPIO_NUM_23' undeclared (first use in this function); did you mean 'GPIO_NUM_43'?
+   93 | #define RG_GPIO_SDSPI_MOSI          GPIO_NUM_23
+      |                                     ^~~~~~~~~~~
+/Users/jeffc/Development/Xiao/retro-go/components/retro-go/rg_storage.c:94:24: note: in expansion of macro 'RG_GPIO_SDSPI_MOSI'
+   94 |         .mosi_io_num = RG_GPIO_SDSPI_MOSI,
+      |                        ^~~~~~~~~~~~~~~~~~
+/Users/jeffc/Development/Xiao/retro-go/components/retro-go/targets/odroid-go/config.h:93:37: note: each undeclared identifier is reported only once for each function it appears in
+   93 | #define RG_GPIO_SDSPI_MOSI          GPIO_NUM_23
+      |                                     ^~~~~~~~~~~
+/Users/jeffc/Development/Xiao/retro-go/components/retro-go/rg_storage.c:94:24: note: in expansion of macro 'RG_GPIO_SDSPI_MOSI'
+   94 |         .mosi_io_num = RG_GPIO_SDSPI_MOSI,
+      |                        ^~~~~~~~~~~~~~~~~~
+make[2]: *** [esp-idf/retro-go/CMakeFiles/__idf_retro-go.dir/rg_display.c.obj] Error 1
+/Users/jeffc/Development/Xiao/retro-go/components/retro-go/targets/odroid-go/config.h:95:37: error: 'GPIO_NUM_22' undeclared (first use in this function); did you mean 'GPIO_NUM_42'?
+   95 | #define RG_GPIO_SDSPI_CS            GPIO_NUM_22
+      |                                     ^~~~~~~~~~~
+/Users/jeffc/Development/Xiao/retro-go/components/retro-go/rg_storage.c:112:27: note: in expansion of macro 'RG_GPIO_SDSPI_CS'
+  112 |     slot_config.gpio_cs = RG_GPIO_SDSPI_CS;
+      |                           ^~~~~~~~~~~~~~~~
+In file included from /Users/jeffc/Development/Xiao/retro-go/components/retro-go/config.h:41:
+/Users/jeffc/Development/Xiao/retro-go/components/retro-go/rg_system.c: In function 'platform_init':
+/Users/jeffc/Development/Xiao/retro-go/components/retro-go/targets/odroid-go/config.h:95:37: error: 'GPIO_NUM_22' undeclared (first use in this function); did you mean 'GPIO_NUM_42'?
+   95 | #define RG_GPIO_SDSPI_CS            GPIO_NUM_22
+      |                                     ^~~~~~~~~~~
+/Users/jeffc/Development/Xiao/retro-go/components/retro-go/rg_system.c:514:28: note: in expansion of macro 'RG_GPIO_SDSPI_CS'
+  514 |         gpio_set_direction(RG_GPIO_SDSPI_CS, GPIO_MODE_OUTPUT);
+      |                            ^~~~~~~~~~~~~~~~
+/Users/jeffc/Development/Xiao/retro-go/components/retro-go/targets/odroid-go/config.h:95:37: note: each undeclared identifier is reported only once for each function it appears in
+   95 | #define RG_GPIO_SDSPI_CS            GPIO_NUM_22
+      |                                     ^~~~~~~~~~~
+/Users/jeffc/Development/Xiao/retro-go/components/retro-go/rg_system.c:514:28: note: in expansion of macro 'RG_GPIO_SDSPI_CS'
+  514 |         gpio_set_direction(RG_GPIO_SDSPI_CS, GPIO_MODE_OUTPUT);
+      |                            ^~~~~~~~~~~~~~~~
+make[2]: *** [esp-idf/retro-go/CMakeFiles/__idf_retro-go.dir/rg_storage.c.obj] Error 1
+make[2]: *** [esp-idf/retro-go/CMakeFiles/__idf_retro-go.dir/rg_gui.c.obj] Error 1
+make[2]: *** [esp-idf/retro-go/CMakeFiles/__idf_retro-go.dir/rg_system.c.obj] Error 1
+make[1]: *** [esp-idf/retro-go/CMakeFiles/__idf_retro-go.dir/all] Error 2
+make: *** [all] Error 2

@@ -127,12 +127,19 @@ void gui_invalidate(void)
 rg_image_t *gui_get_image(const char *type, const char *subtype)
 {
     char name[64];
+    const char *resolved_subtype = subtype;
 
     if (gui.low_memory_mode)
         return NULL;
 
-    if (subtype && *subtype)
-        snprintf(name, sizeof(name), "%s_%s.png", type, subtype);
+    // Keep short internal IDs decoupled from the built-in image filenames.
+    if (resolved_subtype && strcmp(resolved_subtype, "a26") == 0)
+        resolved_subtype = "2600";
+    else if (resolved_subtype && strcmp(resolved_subtype, "a78") == 0)
+        resolved_subtype = "7800";
+
+    if (resolved_subtype && *resolved_subtype)
+        snprintf(name, sizeof(name), "%s_%s.png", type, resolved_subtype);
     else
         snprintf(name, sizeof(name), "%s.png", type);
 
@@ -461,12 +468,23 @@ void gui_draw_background(tab_t *tab, int shade)
 
 void gui_draw_header(tab_t *tab, int offset)
 {
+    const char *logo_text = tab->name;
+
     if (!tab->banner)
         tab->banner = gui_get_image("banner", tab->name);
     if (!tab->logo)
         tab->logo = gui_get_image("logo", tab->name);
 
-    rg_gui_draw_image(0, offset, LOGO_WIDTH, HEADER_HEIGHT, false, tab->logo);
+    if (strcmp(tab->name, "a26") == 0)
+        logo_text = "2600";
+    else if (strcmp(tab->name, "a78") == 0)
+        logo_text = "7800";
+
+    if (tab->logo)
+        rg_gui_draw_image(0, offset, LOGO_WIDTH, HEADER_HEIGHT, false, tab->logo);
+    else
+        rg_gui_draw_text(4, offset + 12, 0, logo_text, gui.theme->foreground, C_TRANSPARENT, RG_TEXT_BIGGER);
+
     if (tab->banner)
         rg_gui_draw_image(LOGO_WIDTH + 1, offset + 8, 0, HEADER_HEIGHT - 8, false, tab->banner);
     else

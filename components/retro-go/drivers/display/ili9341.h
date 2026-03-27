@@ -1,148 +1,125 @@
+#include <string.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
-#include <driver/spi_master.h>
 #include <driver/gpio.h>
 #include <driver/ledc.h>
+#include <driver/spi_master.h>
+#include <esp_lcd_panel_io.h>
 
-static spi_device_handle_t spi_dev;
-static QueueHandle_t spi_transactions;
-static QueueHandle_t spi_buffers;
+static QueueHandle_t lcd_free_buffers;
+static QueueHandle_t lcd_inflight_buffers;
+static esp_lcd_panel_io_handle_t lcd_io = NULL;
 
-#define SPI_TRANSACTION_COUNT (10)
-#define SPI_BUFFER_COUNT      (5)
-#define SPI_BUFFER_LENGTH     (LCD_BUFFER_LENGTH * 2)
+#define LCD_BUFFER_COUNT  (3)
+#define LCD_BUFFER_BYTES  (LCD_BUFFER_LENGTH * sizeof(uint16_t))
 
-#define ILI9341_CMD(cmd, data...)                    \
-    {                                                \
-        const uint8_t c = cmd, x[] = {data};         \
-        spi_queue_transaction(&c, 1, 0);             \
-        if (sizeof(x))                               \
-            spi_queue_transaction(&x, sizeof(x), 1); \
-    }
+static int lcd_window_left = 0;
+static int lcd_window_width = 0;
+static int lcd_window_next_y = 0;
 
 static inline uint16_t *spi_take_buffer(void)
 {
     uint16_t *buffer;
-    if (xQueueReceive(spi_buffers, &buffer, pdMS_TO_TICKS(2500)) != pdTRUE)
+    if (xQueueReceive(lcd_free_buffers, &buffer, pdMS_TO_TICKS(2500)) != pdTRUE)
         RG_PANIC("display");
     return buffer;
 }
 
 static inline void spi_give_buffer(uint16_t *buffer)
 {
-    xQueueSend(spi_buffers, &buffer, portMAX_DELAY);
+    xQueueSend(lcd_free_buffers, &buffer, portMAX_DELAY);
 }
 
-static inline void spi_queue_transaction(const void *data, size_t length, uint32_t type)
+static bool lcd_color_trans_done_cb(esp_lcd_panel_io_handle_t panel_io,
+                                    esp_lcd_panel_io_event_data_t *edata,
+                                    void *user_ctx)
 {
-    if (!data || !length)
-        return;
+    (void)panel_io;
+    (void)edata;
+    (void)user_ctx;
 
-    spi_transaction_t *t;
-    xQueueReceive(spi_transactions, &t, portMAX_DELAY);
+    BaseType_t high_task_wakeup = pdFALSE;
+    void *buffer = NULL;
 
-    *t = (spi_transaction_t){
-        .tx_buffer = NULL,
-        .length = length * 8, // In bits
-        .user = (void *)type,
-        .flags = 0,
-    };
+    if (xQueueReceiveFromISR(lcd_inflight_buffers, &buffer, &high_task_wakeup) == pdTRUE && buffer)
+        xQueueSendFromISR(lcd_free_buffers, &buffer, &high_task_wakeup);
 
-    if (type & 2)
-    {
-        t->tx_buffer = data;
-    }
-    else if (length < 5)
-    {
-        memcpy(t->tx_data, data, length);
-        t->flags = SPI_TRANS_USE_TXDATA;
-    }
-    else
-    {
-        t->tx_buffer = memcpy(spi_take_buffer(), data, length);
-        t->user = (void *)(type | 2);
-    }
-
-    if (spi_device_queue_trans(spi_dev, t, pdMS_TO_TICKS(2500)) != ESP_OK)
-    {
-        RG_PANIC("display");
-    }
+    return high_task_wakeup == pdTRUE;
 }
 
-IRAM_ATTR
-static void spi_pre_transfer_cb(spi_transaction_t *t)
+static void lcd_reclaim_done_buffers(void)
 {
-    // Set the data/command line accordingly
-    gpio_set_level(RG_GPIO_LCD_DC, (int)t->user & 1);
+    // Callback returns finished buffers directly to lcd_free_buffers.
 }
 
-IRAM_ATTR
-static void spi_task(void *arg)
+static inline void lcd_write_cmd(uint8_t cmd, const void *data, size_t length)
 {
-    spi_transaction_t *t;
-
-    while (spi_device_get_trans_result(spi_dev, &t, portMAX_DELAY) == ESP_OK)
-    {
-        if ((int)t->user & 2)
-            spi_give_buffer((uint16_t *)t->tx_buffer);
-        xQueueSend(spi_transactions, &t, portMAX_DELAY);
-    }
+    esp_err_t ret = esp_lcd_panel_io_tx_param(lcd_io, cmd, data, length);
+    RG_ASSERT(ret == ESP_OK, "esp_lcd_panel_io_tx_param failed.");
 }
+
+#define ILI9341_CMD(cmd, data...)         \
+    {                                     \
+        const uint8_t x[] = {data};       \
+        lcd_write_cmd((cmd), x, sizeof(x)); \
+    }
 
 static void spi_init(void)
 {
-    spi_transactions = xQueueCreate(SPI_TRANSACTION_COUNT, sizeof(spi_transaction_t *));
-    spi_buffers = xQueueCreate(SPI_BUFFER_COUNT, sizeof(uint16_t *));
+    lcd_free_buffers = xQueueCreate(LCD_BUFFER_COUNT, sizeof(uint16_t *));
+    lcd_inflight_buffers = xQueueCreate(LCD_BUFFER_COUNT, sizeof(uint16_t *));
+    RG_ASSERT(lcd_free_buffers, "lcd free buffer queue alloc failed");
+    RG_ASSERT(lcd_inflight_buffers, "lcd inflight buffer queue alloc failed");
 
-    while (uxQueueSpacesAvailable(spi_transactions))
+    while (uxQueueSpacesAvailable(lcd_free_buffers))
     {
-        void *trans = malloc(sizeof(spi_transaction_t));
-        xQueueSend(spi_transactions, &trans, portMAX_DELAY);
-    }
-
-    while (uxQueueSpacesAvailable(spi_buffers))
-    {
-        void *buffer = rg_alloc(SPI_BUFFER_LENGTH, MEM_DMA);
-        xQueueSend(spi_buffers, &buffer, portMAX_DELAY);
+        void *buffer = rg_alloc(LCD_BUFFER_BYTES, MEM_DMA);
+        RG_ASSERT(buffer, "lcd buffer alloc failed");
+        xQueueSend(lcd_free_buffers, &buffer, portMAX_DELAY);
     }
 
     const spi_bus_config_t buscfg = {
+#if defined(RG_STORAGE_SDSPI_HOST) && defined(RG_GPIO_SDSPI_MISO)
+        // When the LCD and SD share a host, storage may have already initialized the bus
+        // with a valid MISO pin. Keeping the SD MISO available is harmless for LCD-only writes.
+        .miso_io_num = RG_GPIO_SDSPI_MISO,
+#else
         .miso_io_num = RG_GPIO_LCD_MISO,
+#endif
         .mosi_io_num = RG_GPIO_LCD_MOSI,
         .sclk_io_num = RG_GPIO_LCD_CLK,
         .quadwp_io_num = -1,
         .quadhd_io_num = -1,
-    };
-
-    const spi_device_interface_config_t devcfg = {
-        .clock_speed_hz = RG_SCREEN_SPEED,   // Typically SPI_MASTER_FREQ_40M or SPI_MASTER_FREQ_80M
-        .mode = 0,                           // SPI mode 0
-        .spics_io_num = RG_GPIO_LCD_CS,      // CS pin
-        .queue_size = SPI_TRANSACTION_COUNT, // We want to be able to queue 5 transactions at a time
-        .pre_cb = &spi_pre_transfer_cb,      // Specify pre-transfer callback to handle D/C line and SPI lock
-        .flags = SPI_DEVICE_NO_DUMMY,        // SPI_DEVICE_HALFDUPLEX;
+        .max_transfer_sz = LCD_BUFFER_BYTES + 16,
     };
 
     esp_err_t ret;
-
-    // Initialize the SPI bus
     ret = spi_bus_initialize(RG_SCREEN_HOST, &buscfg, SPI_DMA_CH_AUTO);
     RG_ASSERT(ret == ESP_OK || ret == ESP_ERR_INVALID_STATE, "spi_bus_initialize failed.");
 
-    ret = spi_bus_add_device(RG_SCREEN_HOST, &devcfg, &spi_dev);
-    RG_ASSERT(ret == ESP_OK, "spi_bus_add_device failed.");
+    const esp_lcd_panel_io_spi_config_t io_config = {
+        .cs_gpio_num = RG_GPIO_LCD_CS,
+        .dc_gpio_num = RG_GPIO_LCD_DC,
+        .spi_mode = 0,
+        .pclk_hz = RG_SCREEN_SPEED,
+        .trans_queue_depth = LCD_BUFFER_COUNT,
+        .lcd_cmd_bits = 8,
+        .lcd_param_bits = 8,
+        .on_color_trans_done = lcd_color_trans_done_cb,
+        .user_ctx = NULL,
+    };
 
-    rg_task_create("rg_spi", &spi_task, NULL, 1.5 * 1024, RG_TASK_PRIORITY_7, 1);
+    ret = esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)RG_SCREEN_HOST, &io_config, &lcd_io);
+    RG_ASSERT(ret == ESP_OK, "esp_lcd_new_panel_io_spi failed.");
 }
 
 static void spi_deinit(void)
 {
-    // When transactions are still in flight, spi_bus_remove_device fails and spi_bus_free then crashes.
-    // The real solution would be to wait for transactions to be done, but this is simpler for now...
-    if (spi_bus_remove_device(spi_dev) == ESP_OK)
-        spi_bus_free(RG_SCREEN_HOST);
-    else
-        RG_LOGE("Failed to properly terminate SPI driver!");
+    if (lcd_io)
+    {
+        esp_lcd_panel_io_del(lcd_io);
+        lcd_io = NULL;
+    }
 }
 
 static void lcd_set_backlight(float percent)
@@ -162,40 +139,66 @@ static void lcd_set_backlight(float percent)
 
 static void lcd_set_window(int left, int top, int width, int height)
 {
-    int right = left + width - 1;
-    int bottom = top + height - 1;
-
-    if (left < 0 || top < 0 || right >= display.screen.real_width || bottom >= display.screen.real_height)
-        RG_LOGW("Bad lcd window (x0=%d, y0=%d, x1=%d, y1=%d)\n", left, top, right, bottom);
-
-    ILI9341_CMD(0x2A, left >> 8, left & 0xff, right >> 8, right & 0xff); // Horiz
-    ILI9341_CMD(0x2B, top >> 8, top & 0xff, bottom >> 8, bottom & 0xff); // Vert
-    ILI9341_CMD(0x2C);                                                   // Memory write
+    (void)height;
+    lcd_window_left = left;
+    lcd_window_width = width;
+    lcd_window_next_y = top;
 }
 
 static inline uint16_t *lcd_get_buffer(size_t length)
 {
-    // RG_ASSERT_ARG(length < LCD_BUFFER_LENGTH);
+    (void)length;
+    lcd_reclaim_done_buffers();
     return spi_take_buffer();
 }
 
 static inline void lcd_send_buffer(uint16_t *buffer, size_t length)
 {
-    if (length > 0)
-        spi_queue_transaction(buffer, length * sizeof(*buffer), 3);
-    else
+    if (length == 0)
+    {
         spi_give_buffer(buffer);
+        return;
+    }
+
+    RG_ASSERT(lcd_window_width > 0, "lcd window width invalid");
+
+    const int lines = length / lcd_window_width;
+    RG_ASSERT(lines > 0, "lcd_send_buffer: zero lines");
+    RG_ASSERT((lines * lcd_window_width) == (int)length, "lcd_send_buffer: partial line chunk");
+
+    const int left = lcd_window_left;
+    const int right = left + lcd_window_width - 1;
+    const int top = lcd_window_next_y;
+    const int bottom = top + lines - 1;
+    const uint8_t col_data[] = {left >> 8, left & 0xff, right >> 8, right & 0xff};
+    const uint8_t row_data[] = {top >> 8, top & 0xff, bottom >> 8, bottom & 0xff};
+
+    lcd_write_cmd(0x2A, col_data, sizeof(col_data));
+    lcd_write_cmd(0x2B, row_data, sizeof(row_data));
+
+    xQueueSend(lcd_inflight_buffers, &buffer, portMAX_DELAY);
+
+    esp_err_t ret = esp_lcd_panel_io_tx_color(lcd_io, 0x2C, buffer, length * sizeof(*buffer));
+    if (ret != ESP_OK)
+    {
+        void *tmp = NULL;
+        xQueueReceive(lcd_inflight_buffers, &tmp, 0);
+        spi_give_buffer(buffer);
+        RG_ASSERT(false, "esp_lcd_panel_io_tx_color failed.");
+    }
+
+    lcd_window_next_y += lines;
 }
 
 static void lcd_sync(void)
 {
-    // Unused for SPI LCD
+    while (uxQueueMessagesWaiting(lcd_inflight_buffers) > 0)
+        vTaskDelay(pdMS_TO_TICKS(1));
 }
 
 static void lcd_init(void)
 {
 #ifdef RG_GPIO_LCD_BCKL
-    // Initialize backlight at 0% to avoid the lcd reset flash
     ledc_timer_config(&(ledc_timer_config_t){
         .speed_mode = LEDC_LOW_SPEED_MODE,
         .duty_resolution = LEDC_TIMER_13_BIT,
@@ -217,34 +220,31 @@ static void lcd_init(void)
 
     spi_init();
 
-    // Setup Data/Command line
-    gpio_set_direction(RG_GPIO_LCD_DC, GPIO_MODE_OUTPUT);
-    gpio_set_level(RG_GPIO_LCD_DC, 1);
-
 #if defined(RG_GPIO_LCD_RST)
     gpio_set_direction(RG_GPIO_LCD_RST, GPIO_MODE_OUTPUT);
     gpio_set_level(RG_GPIO_LCD_RST, 0);
     rg_usleep(100 * 1000);
     gpio_set_level(RG_GPIO_LCD_RST, 1);
-    rg_usleep(10 * 1000);
+    rg_usleep(150 * 1000);
 #endif
 
-    ILI9341_CMD(0x01);       // Reset
-    rg_usleep(5 * 1000);     // Wait 5ms after reset
-    ILI9341_CMD(0x3A, 0X55); // COLMOD (Pixel Format Set RGB565 65k)
-#if defined(RG_SCREEN_ROTATION) && defined(RG_SCREEN_RGB_BGR)
-    // The rotation is designed so that the user can simply try all values 0-7 to find what works.
-    // It's simpler than trying to explain the MADCTL register bits, combined with hardware variations...
-    ILI9341_CMD(0x36, (RG_SCREEN_RGB_BGR ? 0x08 : 0x00) | (RG_SCREEN_ROTATION << 5)); // MADCTL (0x08=BGR, 0x20=MV, 0x40=MX, 0x80=MY)
-#endif
+    lcd_write_cmd(0x01, NULL, 0);
+    rg_usleep(150 * 1000);
+
+    {
+        const uint8_t pixel_format = 0x55;
+        lcd_write_cmd(0x3A, &pixel_format, 1);
+    }
+
 #ifdef RG_SCREEN_INIT
     RG_SCREEN_INIT();
 #else
     #warning "LCD init sequence is not defined for this device!"
 #endif
-    ILI9341_CMD(0x11);    // Exit Sleep
-    rg_usleep(10 * 1000); // Wait 10ms after sleep out
-    ILI9341_CMD(0x29);    // Display on
+
+    lcd_write_cmd(0x11, NULL, 0);
+    rg_usleep(150 * 1000);
+    lcd_write_cmd(0x29, NULL, 0);
 }
 
 static void lcd_deinit(void)
@@ -252,9 +252,8 @@ static void lcd_deinit(void)
 #ifdef RG_SCREEN_DEINIT
     RG_SCREEN_DEINIT();
 #endif
+    lcd_sync();
     spi_deinit();
-    // gpio_reset_pin(RG_GPIO_LCD_BCKL);
-    // gpio_reset_pin(RG_GPIO_LCD_DC);
 }
 
 const rg_display_driver_t rg_display_driver_ili9341 = {

@@ -1,0 +1,84 @@
+set(COMPONENT_SRCS
+    "core/libretro.c"
+    "core/Bios.c"
+    "core/BupChip.c"
+    "core/Cartridge.c"
+    "core/Database.c"
+    "core/Hash.c"
+    "core/Maria.c"
+    "core/Memory.c"
+    "core/Palette.c"
+    "core/Pokey.c"
+    "core/ProSystem.c"
+    "core/Region.c"
+    "core/Riot.c"
+    "core/Sally.c"
+    "core/Tia.c"
+    "bupboop/coretone/channel.c"
+    "bupboop/coretone/coretone.c"
+    "bupboop/coretone/music.c"
+    "bupboop/coretone/sample.c"
+    "libretro-common/compat/compat_posix_string.c"
+    "libretro-common/compat/compat_strcasestr.c"
+    "libretro-common/compat/compat_snprintf.c"
+    "libretro-common/compat/compat_strl.c"
+    "libretro-common/compat/fopen_utf8.c"
+    "libretro-common/encodings/encoding_utf.c"
+    "libretro-common/file/file_path.c"
+    "libretro-common/file/file_path_io.c"
+    "libretro-common/streams/file_stream.c"
+    "libretro-common/streams/file_stream_transforms.c"
+    "libretro-common/string/stdstring.c"
+    "libretro-common/time/rtime.c"
+    "libretro-common/vfs/vfs_implementation.c"
+)
+
+set(COMPONENT_ADD_INCLUDEDIRS
+    "."
+    "core"
+    "bupboop/coretone"
+    "libretro-common/include"
+)
+
+set(COMPONENT_REQUIRES "retro-go")
+
+register_component()
+
+target_compile_definitions(${COMPONENT_LIB} PRIVATE
+    retro_set_video_refresh=prosystem_retro_set_video_refresh
+    retro_set_audio_sample=prosystem_retro_set_audio_sample
+    retro_set_audio_sample_batch=prosystem_retro_set_audio_sample_batch
+    retro_set_input_poll=prosystem_retro_set_input_poll
+    retro_set_input_state=prosystem_retro_set_input_state
+    retro_set_environment=prosystem_retro_set_environment
+    retro_get_system_info=prosystem_retro_get_system_info
+    retro_get_system_av_info=prosystem_retro_get_system_av_info
+    retro_set_controller_port_device=prosystem_retro_set_controller_port_device
+    retro_serialize_size=prosystem_retro_serialize_size
+    retro_serialize=prosystem_retro_serialize
+    retro_unserialize=prosystem_retro_unserialize
+    retro_cheat_reset=prosystem_retro_cheat_reset
+    retro_cheat_set=prosystem_retro_cheat_set
+    retro_load_game=prosystem_retro_load_game
+    retro_load_game_special=prosystem_retro_load_game_special
+    retro_unload_game=prosystem_retro_unload_game
+    retro_get_region=prosystem_retro_get_region
+    retro_api_version=prosystem_retro_api_version
+    retro_get_memory_data=prosystem_retro_get_memory_data
+    retro_get_memory_size=prosystem_retro_get_memory_size
+    retro_init=prosystem_retro_init
+    retro_deinit=prosystem_retro_deinit
+    retro_reset=prosystem_retro_reset
+    retro_run=prosystem_retro_run
+    option_defs_us=prosystem_option_defs_us
+    option_defs_intl=prosystem_option_defs_intl
+)
+
+rg_setup_compile_options(
+    -O2
+    -Wno-error=format
+    -Wno-sign-compare
+    -Wno-unused-function
+    -Wno-unused-variable
+    -Wno-missing-field-initializers
+)

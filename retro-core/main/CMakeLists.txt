@@ -1,4 +1,5 @@
 set(COMPONENT_SRCDIRS ".")
 set(COMPONENT_ADD_INCLUDEDIRS ".")
+set(COMPONENT_REQUIRES "retro-go nofrendo gnuboy pce-go gw-emulator handy smsplus snes9x stella2014 prosystem")
 register_component()
 rg_setup_compile_options(-O2 -Wno-error=format)
